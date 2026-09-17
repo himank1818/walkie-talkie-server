@@ -1,0 +1,21 @@
+{
+  "name": "walkie_talkie",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "expo": "^57.0.23",
+    "express": "^5.2.1",
+    "react-dom": "19.2.3",
+    "react-native-webrtc": "^124.0.8",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3"
+  }
+}

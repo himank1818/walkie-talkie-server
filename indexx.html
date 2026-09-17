@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Walkie-Talkie PTT App</title>
+    <script src="http://localhost:3000/socket.io/socket.io.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 40px; background: #121212; color: white; }
+        .container { max-width: 400px; margin: auto; background: #1e1e1e; padding: 20px; border-radius: 12px; box-shadow: 0px 5px 15px rgba(0,0,0,0.5); }
+        input { padding: 10px; width: 80%; margin-bottom: 15px; border-radius: 5px; border: 1px solid #444; background: #2a2a2a; color: white; }
+        button#join-btn { padding: 10px 20px; background: #3742fa; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button#ptt-btn { width: 180px; height: 180px; border-radius: 50%; background: #ff4757; color: white; font-size: 18px; font-weight: bold; border: none; cursor: pointer; box-shadow: 0px 5px 15px rgba(0,0,0,0.5); margin-top: 20px; }
+        button#ptt-btn.active { background: #2ed573; transform: scale(0.95); }
+        #status { margin: 15px 0; color: #aaa; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Web Walkie-Talkie</h2>
+        <input type="text" id="room-input" placeholder="Enter Room Name (e.g., test123)"><br>
+        <button id="join-btn">Join Room</button>
+        <div id="status">Status: Disconnected</div>
+        <br>
+        <button id="ptt-btn" disabled>HOLD TO TALK</button>
+        <audio id="remote-audio" autoplay></audio>
+    </div>
+
+    <script>
+        const socket = io('http://localhost:3000');
+
+        let peerConnection;
+        let localStream;
+        let roomId;
+        let localAudioTrack;
+
+        const stunConfig = {
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        };
+
+        const roomInput = document.getElementById('room-input');
+        const joinBtn = document.getElementById('join-btn');
+        const pttBtn = document.getElementById('ptt-btn');
+        const statusDiv = document.getElementById('status');
+        const remoteAudio = document.getElementById('remote-audio');
+
+        socket.on('connect', () => {
+            statusDiv.innerText = 'Status: Connected to Server. Join a room.';
+        });
+
+        joinBtn.addEventListener('click', async () => {
+            roomId = roomInput.value.trim();
+            if (!roomId) {
+                alert('Please enter a room name');
+                return;
+            }
+            
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                localAudioTrack = localStream.getAudioTracks()[0];
+                localAudioTrack.enabled = false; 
+            } catch (err) {
+                alert('Microphone permission denied: ' + err.message);
+                return;
+            }
+
+            socket.emit('join-channel', roomId);
+            statusDiv.innerText = 'Status: Joined Room ' + roomId + '. Waiting for peer...';
+            joinBtn.disabled = true;
+            roomInput.disabled = true;
+        });
+
+        // Jab doosra user join karega, toh pehla user offer banakar bheje ga
+        socket.on('peer-joined', async () => {
+            statusDiv.innerText = 'Status: Peer connected! Ready to talk.';
+            pttBtn.disabled = false;
+            
+            createPeerConnection();
+            peerConnection.addTrack(localAudioTrack, localStream);
+
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            socket.emit('signal', { room: roomId, signal: { type: 'offer', sdp: offer } });
+        });
+
+        socket.on('signal', async (data) => {
+            if (!peerConnection) {
+                createPeerConnection();
+                peerConnection.addTrack(localAudioTrack, localStream);
+            }
+
+            if (data.type === 'offer') {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                socket.emit('signal', { room: roomId, signal: { type: 'answer', sdp: answer } });
+                pttBtn.disabled = false;
+                statusDiv.innerText = 'Status: Connected & Ready!';
+            } else if (data.type === 'answer') {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            } else if (data.candidate) {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+            }
+        });
+
+        function createPeerConnection() {
+            peerConnection = new RTCPeerConnection(stunConfig);
+
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit('signal', { room: roomId, signal: { candidate: event.candidate } });
+                }
+            };
+
+            peerConnection.ontrack = (event) => {
+                remoteAudio.srcObject = event.streams[0];
+            };
+        }
+
+        const startSpeaking = () => {
+            if (localAudioTrack) {
+                localAudioTrack.enabled = true;
+                pttBtn.classList.add('active');
+                pttBtn.innerText = 'TRANSMITTING...';
+            }
+        };
+
+        const stopSpeaking = () => {
+            if (localAudioTrack) {
+                localAudioTrack.enabled = false;
+                pttBtn.classList.remove('active');
+                pttBtn.innerText = 'HOLD TO TALK';
+            }
+        };
+
+        pttBtn.addEventListener('mousedown', startSpeaking);
+        pttBtn.addEventListener('mouseup', stopSpeaking);
+        pttBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startSpeaking(); });
+        pttBtn.addEventListener('touchend', (e) => { e.preventDefault(); stopSpeaking(); });
+    </script>
+</body>
+</html>
