@@ -1,7 +1,7 @@
 import { io } from 'socket.io-client';
 
 // Replace with your hosted free signaling server URL (e.g., Render, Railway, or local IP for testing)
-const SIGNALING_SERVER_URL = 'https://your-signaling-server.onrender.com';
+const SIGNALING_SERVER_URL = 'https://walkie-talkie-server-r0vx.onrender.com';
 
 class SocketService {
   constructor() {

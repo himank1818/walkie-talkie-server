@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Web Walkie-Talkie PTT App</title>
-    <script src="http://localhost:3000/socket.io/socket.io.js"></script>
+    <script src="https://walkie-talkie-server-r0vx.onrender.com/socket.io/socket.io.js"></script>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; margin-top: 40px; background: #121212; color: white; }
         .container { max-width: 400px; margin: auto; background: #1e1e1e; padding: 20px; border-radius: 12px; box-shadow: 0px 5px 15px rgba(0,0,0,0.5); }
@@ -27,7 +27,7 @@
     </div>
 
     <script>
-        const socket = io('http://localhost:3000');
+        const socket = io('https://walkie-talkie-server-r0vx.onrender.com');
 
         let peerConnection;
         let localStream;
@@ -70,7 +70,6 @@
             roomInput.disabled = true;
         });
 
-        // Jab doosra user join karega, toh pehla user offer banakar bheje ga
         socket.on('peer-joined', async () => {
             statusDiv.innerText = 'Status: Peer connected! Ready to talk.';
             pttBtn.disabled = false;
